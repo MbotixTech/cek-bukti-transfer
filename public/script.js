@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const formData = new FormData();
       formData.append('image', file);
       
-      fetch('/api/verify', {
+      fetch(window.location.origin + '/api/verify', {
         method: 'POST',
         body: formData
       })
