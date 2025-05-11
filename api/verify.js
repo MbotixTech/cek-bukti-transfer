@@ -102,7 +102,8 @@ module.exports = async (req, res) => {
     Alasan: [berikan 3-5 kalimat penjelasan detail temuan spesifik]
     `;
 
-    const analysisResult = await analyzeWithGemini(base64Image, prompt);
+    const mimeType = req.file.mimetype;
+    const analysisResult = await analyzeWithGemini(base64Image, prompt, mimeType);
     const cleanedResult = cleanupMarkdown(analysisResult);
 
     let paymentType = "Tidak terdeteksi";
