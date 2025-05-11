@@ -1,19 +1,5 @@
-const multer = require('multer');
 const { analyzeWithGemini } = require('../lib/gemini-service');
 require('dotenv').config();
-
-const memoryStorage = multer.memoryStorage();
-const upload = multer({ 
-  storage: memoryStorage,
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
-      cb(null, true);
-    } else {
-      cb(new Error('Only JPG and PNG files are allowed'), false);
-    }
-  }
-});
 
 function cleanupMarkdown(text) {
   return text
@@ -25,30 +11,23 @@ function cleanupMarkdown(text) {
     .trim();
 }
 
-const processFile = upload.single('image');
-
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-  
-  await new Promise((resolve, reject) => {
-    processFile(req, res, (err) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve();
-    });
-  }).catch(err => {
-    return res.status(400).json({ error: err.message });
-  });
 
   try {
-    if (!req.file) {
+    const buffers = [];
+    for await (const chunk of req) {
+      buffers.push(chunk);
+    }
+    const data = Buffer.concat(buffers);
+
+    const { image, mimeType } = JSON.parse(data.toString());
+
+    if (!image) {
       return res.status(400).json({ error: 'No image uploaded' });
     }
-
-    const base64Image = req.file.buffer.toString('base64');
 
     const prompt = `
     Analisis detail gambar bukti transfer/pembayaran ini dan tentukan apakah ASLI atau PALSU.
@@ -102,8 +81,7 @@ module.exports = async (req, res) => {
     Alasan: [berikan 3-5 kalimat penjelasan detail temuan spesifik]
     `;
 
-    const mimeType = req.file.mimetype;
-    const analysisResult = await analyzeWithGemini(base64Image, prompt, mimeType);
+    const analysisResult = await analyzeWithGemini(image, prompt, mimeType || "image/jpeg");
     const cleanedResult = cleanupMarkdown(analysisResult);
 
     let paymentType = "Tidak terdeteksi";
@@ -193,7 +171,6 @@ module.exports = async (req, res) => {
       message
     });
   } catch (error) {
-    console.error('Error analyzing image:', error);
     res.status(500).json({ 
       error: 'Failed to analyze image', 
       details: error.message 
