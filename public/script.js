@@ -91,10 +91,6 @@ document.addEventListener('DOMContentLoaded', function() {
         previewContainer.innerHTML = '';
         submitButton.classList.add('hidden');
       });
-
-      // Simpan base64 ke global variable
-      window._base64Image = event.target.result.split(',')[1]; // ambil base64 tanpa prefix
-      window._mimeType = file.type;
     };
     
     reader.readAsDataURL(file);
@@ -115,14 +111,12 @@ document.addEventListener('DOMContentLoaded', function() {
       previewContainer.style.display = 'none';
       submitButton.classList.add('hidden');
       
-      // Kirim JSON, bukan FormData
+      const formData = new FormData();
+      formData.append('image', file);
+      
       fetch('/api/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          image: window._base64Image,
-          mimeType: window._mimeType
-        })
+        body: formData
       })
       .then(response => {
         if (!response.ok) {
