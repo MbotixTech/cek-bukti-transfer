@@ -9,7 +9,7 @@
 
 ## 📂 Project Description
 
-A web-based tool to analyze uploaded images of transfer receipts and predict whether they are genuine or fake using the Gemini AI API.
+A web-based tool to analyze uploaded images of BCA transfer receipts and predict whether they are genuine or fake using the Gemini AI API.
 
 ---
 
