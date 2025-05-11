@@ -106,7 +106,8 @@
             <button type="button" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2 rounded-lg transition-all duration-300 transform hover:scale-105">
               Pilih File
             </button>
-            <input type="file" id="fileInput" class="hidden" accept="image/*">
+            <label for="fileInput" class="sr-only">Upload bukti transfer</label>
+            <input type="file" id="fileInput" class="hidden" accept="image/*" title="Pilih file bukti transfer">
             <p class="mt-4 text-sm text-gray-500">Format: JPG, PNG (Max 5MB)</p>
           </div>
           
@@ -140,5 +141,13 @@
   </div>
   
   <script src="script.js"></script>
+  <script>
+    const routes = [
+      {
+        "src": "/api/(.*)",
+        "dest": "/api/$1"
+      }
+    ];
+  </script>
 </body>
 </html>
