@@ -171,9 +171,11 @@ module.exports = async (req, res) => {
       message
     });
   } catch (error) {
+    console.error("API Error:", error);
     res.status(500).json({ 
       error: 'Failed to analyze image', 
-      details: error.message 
+      details: error.message,
+      stack: error.stack
     });
   }
 };
