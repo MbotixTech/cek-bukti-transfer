@@ -114,61 +114,73 @@ document.addEventListener('DOMContentLoaded', function() {
       const formData = new FormData();
       formData.append('image', file);
       
-      fetch(window.location.origin + '/api/verify', {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.json();
-      })
-      .then(data => {
-        loadingSpinner.classList.add('d-none');
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = function() {
+        const base64Data = reader.result.split(',')[1];
         
-        resultContainer.innerHTML = `
-          <div class="result-card fade-in">
-            <h3 class="text-xl font-bold mb-4">${data.status || 'Hasil Analisis'}</h3>
-            <div class="result-content">
-              <div class="authenticity-result ${data.isAuthentic ? 'authentic' : 'fake'}">
-                <span class="status-icon">${data.isAuthentic ? '✓' : '✗'}</span>
-                <p class="font-medium">${data.isAuthentic ? 'Bukti transfer ASLI' : 'Bukti transfer PALSU'}</p>
+        fetch(window.location.origin + '/api/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            image: base64Data,
+            mimeType: file.type
+          })
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.json();
+        })
+        .then(data => {
+          loadingSpinner.classList.add('d-none');
+          
+          resultContainer.innerHTML = `
+            <div class="result-card fade-in">
+              <h3 class="text-xl font-bold mb-4">${data.status || 'Hasil Analisis'}</h3>
+              <div class="result-content">
+                <div class="authenticity-result ${data.isAuthentic ? 'authentic' : 'fake'}">
+                  <span class="status-icon">${data.isAuthentic ? '✓' : '✗'}</span>
+                  <p class="font-medium">${data.isAuthentic ? 'Bukti transfer ASLI' : 'Bukti transfer PALSU'}</p>
+                </div>
+                <p class="result-message mt-4">${data.message || ''}</p>
               </div>
-              <p class="result-message mt-4">${data.message || ''}</p>
+              <button type="button" id="reset-btn" class="mt-6 w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium px-6 py-2 rounded-lg transition-all duration-300">
+                Periksa Bukti Transfer Lainnya
+              </button>
             </div>
-            <button type="button" id="reset-btn" class="mt-6 w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium px-6 py-2 rounded-lg transition-all duration-300">
-              Periksa Bukti Transfer Lainnya
-            </button>
-          </div>
-        `;
-        
-        document.getElementById('reset-btn').addEventListener('click', function() {
-          fileInput.value = '';
-          fileInputContainer.style.display = 'flex';
-          previewContainer.innerHTML = '';
-          resultContainer.innerHTML = '';
+          `;
+          
+          document.getElementById('reset-btn').addEventListener('click', function() {
+            fileInput.value = '';
+            fileInputContainer.style.display = 'flex';
+            previewContainer.innerHTML = '';
+            resultContainer.innerHTML = '';
+          });
+          
+          resultContainer.scrollIntoView({ behavior: 'smooth' });
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          loadingSpinner.classList.add('d-none');
+          resultContainer.innerHTML = `
+            <div class="alert alert-danger fade-in p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+              <p>Terjadi kesalahan saat memproses gambar. Silakan coba lagi.</p>
+              <button type="button" id="error-reset-btn" class="mt-4 bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-all duration-300">
+                Coba Lagi
+              </button>
+            </div>
+          `;
+          
+          document.getElementById('error-reset-btn').addEventListener('click', function() {
+            fileInputContainer.style.display = 'flex';
+            resultContainer.innerHTML = '';
+          });
         });
-        
-        resultContainer.scrollIntoView({ behavior: 'smooth' });
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        loadingSpinner.classList.add('d-none');
-        resultContainer.innerHTML = `
-          <div class="alert alert-danger fade-in p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-            <p>Terjadi kesalahan saat memproses gambar. Silakan coba lagi.</p>
-            <button type="button" id="error-reset-btn" class="mt-4 bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-all duration-300">
-              Coba Lagi
-            </button>
-          </div>
-        `;
-        
-        document.getElementById('error-reset-btn').addEventListener('click', function() {
-          fileInputContainer.style.display = 'flex';
-          resultContainer.innerHTML = '';
-        });
-      });
+      };
     });
   }
 

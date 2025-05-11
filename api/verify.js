@@ -1,5 +1,9 @@
+const multer = require('multer');
 const { analyzeWithGemini } = require('../lib/gemini-service');
 require('dotenv').config();
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 function cleanupMarkdown(text) {
   return text
@@ -17,17 +21,20 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const buffers = [];
-    for await (const chunk of req) {
-      buffers.push(chunk);
-    }
-    const data = Buffer.concat(buffers);
+    await new Promise((resolve, reject) => {
+      upload.single('image')(req, res, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
 
-    const { image, mimeType } = JSON.parse(data.toString());
-
-    if (!image) {
+    if (!req.file) {
       return res.status(400).json({ error: 'No image uploaded' });
     }
+
+    const buffer = req.file.buffer;
+    const base64Image = buffer.toString('base64');
+    const mimeType = req.file.mimetype;
 
     const prompt = `
     Analisis detail gambar bukti transfer/pembayaran ini dan tentukan apakah ASLI atau PALSU.
@@ -81,7 +88,7 @@ module.exports = async (req, res) => {
     Alasan: [berikan 3-5 kalimat penjelasan detail temuan spesifik]
     `;
 
-    const analysisResult = await analyzeWithGemini(image, prompt, mimeType || "image/jpeg");
+    const analysisResult = await analyzeWithGemini(base64Image, prompt, mimeType);
     const cleanedResult = cleanupMarkdown(analysisResult);
 
     let paymentType = "Tidak terdeteksi";
