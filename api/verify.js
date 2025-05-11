@@ -1,9 +1,5 @@
-const multer = require('multer');
 const { analyzeWithGemini } = require('../lib/gemini-service');
 require('dotenv').config();
-
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
 
 function cleanupMarkdown(text) {
   return text
@@ -16,25 +12,28 @@ function cleanupMarkdown(text) {
 }
 
 module.exports = async (req, res) => {
+  console.log("API dipanggil dengan method:", req.method);
+  
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    await new Promise((resolve, reject) => {
-      upload.single('image')(req, res, (err) => {
-        if (err) reject(err);
-        else resolve();
+    const { image, mimeType } = req.body;
+    
+    if (!image || !mimeType) {
+      console.log("Data tidak lengkap:", { 
+        imageProvided: !!image, 
+        mimeTypeProvided: !!mimeType 
       });
-    });
-
-    if (!req.file) {
-      return res.status(400).json({ error: 'No image uploaded' });
+      return res.status(400).json({ 
+        error: 'No image data provided', 
+        imageProvided: !!image, 
+        mimeTypeProvided: !!mimeType 
+      });
     }
 
-    const buffer = req.file.buffer;
-    const base64Image = buffer.toString('base64');
-    const mimeType = req.file.mimetype;
+    const base64Image = image;
 
     const prompt = `
     Analisis detail gambar bukti transfer/pembayaran ini dan tentukan apakah ASLI atau PALSU.
@@ -88,7 +87,10 @@ module.exports = async (req, res) => {
     Alasan: [berikan 3-5 kalimat penjelasan detail temuan spesifik]
     `;
 
+    console.log("Mengirim data ke Gemini API");
     const analysisResult = await analyzeWithGemini(base64Image, prompt, mimeType);
+    console.log("Hasil diterima dari Gemini API");
+    
     const cleanedResult = cleanupMarkdown(analysisResult);
 
     let paymentType = "Tidak terdeteksi";
@@ -117,66 +119,17 @@ module.exports = async (req, res) => {
       const lowerText = cleanedResult.toLowerCase();
       
       let authenticScore = 0;
-      let fakeScore = 0;
-      
-      const authenticKeywords = [
-        'asli', 'otentik', 'valid', 'sesuai standar', 'konsisten', 
-        'tidak ada anomali', 'tata letak sesuai', 'format sesuai',
-        'legitimate', 'genuine', 'selaras', 'tepat'
-      ];
-      
-      const fakeKeywords = [
-        'palsu', 'tidak asli', 'mencurigakan', 'janggal', 'tidak konsisten', 
-        'editan', 'manipulasi', 'anomali', 'perbedaan font', 'tidak selaras',
-        'artefak', 'distorsi', 'tidak proporsional', 'diragukan', 'meragukan',
-        'tidak valid', 'inkonsistensi'
-      ];
-      
-      authenticKeywords.forEach(keyword => {
-        const regex = new RegExp(keyword, 'gi');
-        const matches = lowerText.match(regex);
-        if (matches) authenticScore += matches.length * 1.5;
-      });
-      
-      fakeKeywords.forEach(keyword => {
-        const regex = new RegExp(keyword, 'gi');
-        const matches = lowerText.match(regex);
-        if (matches) fakeScore += matches.length;
-      });
-      
-      if (authenticScore > fakeScore) {
-        status = "Asli";
-        isAuthentic = true;
-      } else if (fakeScore > authenticScore) {
-        status = "Palsu";
-        isAuthentic = false;
-      }
-      
-      const reasonMatch = cleanedResult.match(/Alasan:\s*([^\n]+(?:\n[^\n]+)*)/i);
-      if (reasonMatch) {
-        const reason = reasonMatch[1].toLowerCase();
-        
-        if ((reason.includes('konsisten') && reason.includes('sesuai') && !reason.includes('tidak konsisten') && 
-            !reason.includes('tidak sesuai')) || reason.includes('bukti transfer asli')) {
-          status = "Asli";
-          isAuthentic = true;
-        }
-        
-        if ((reason.includes('edit') || reason.includes('manipulasi') || reason.includes('tidak konsisten') || 
-            reason.includes('janggal') || reason.includes('anomali')) && !reason.includes('tidak ada anomali')) {
-          status = "Palsu";
-          isAuthentic = false;
-        }
-      }
     }
-
-    res.status(200).json({
+    
+    console.log("Mengirim respons ke client:", { status, isAuthentic });
+    return res.status(200).json({
       paymentType,
       platform,
       status,
       isAuthentic,
       message
     });
+    
   } catch (error) {
     console.error("API Error:", error);
     res.status(500).json({ 
